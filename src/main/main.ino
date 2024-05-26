@@ -16,6 +16,8 @@ int ledPin = 12;
 
 // Global variable to count milliseconds
 volatile unsigned int timer2_millis = 0;
+// Global variable to count the time sience last position has moved
+volatile unsigned int lastPositionChange = 0;
 
 // Timer2 ISR to increment the millisecond counter
 ISR(TIMER2_COMPA_vect) {
@@ -25,20 +27,16 @@ ISR(TIMER2_COMPA_vect) {
 // Custom delay function using Timer2
 void delay_ms(unsigned int ms) {
   timer2_millis = 0;
-// Set CTC mode (Clear Timer on Compare Match)
-// CTC mode
-  TCCR2A = (1 << WGM21);
-// Prescaler 128
-  TCCR2B = (1 << CS22) | (1 << CS20);
-// Set compare value for 1ms interrupt (16MHz / 128 / 1000 - 1)
-  OCR2A = 124;
-// Enable Timer2 compare interrupt
-  TIMSK2 = (1 << OCIE2A);
+  // Set CTC mode (Clear Timer on Compare Match)
+  TCCR2A = (1 << WGM21); // CTC mode
+  TCCR2B = (1 << CS22) | (1 << CS20); // Prescaler 128
+  OCR2A = 124; // Set compare value for 1ms interrupt (16MHz / 128 / 1000 - 1)
+  TIMSK2 = (1 << OCIE2A); // Enable Timer2 compare interrupt
 
-// Wait until the timer reaches the desired delay
+  // Wait until the timer reaches the desired delay
   while (timer2_millis < ms);
 
-// Disable Timer2 compare interrupt
+  // Disable Timer2 compare interrupt
   TIMSK2 = 0;
 }
 
@@ -51,15 +49,49 @@ void setup() {
   servo.write(Spoint);
 // Declare the LED as an output
   pinMode(ledPin, OUTPUT);
+// Initialize last position change time
+  lastPositionChange = millis();
 // Delay using Timer1
   delay_ms(80);
 }
 
 void loop() {
-// Get the LDR sensor value
-  int ldr1 = analogRead(LDR1);
-// Get the LDR sensor value
-  int ldr2 = analogRead(LDR2);
+// Configure ADC
+// Select channel 0
+  ADMUX = 0;
+// AVCC with external capacitor at AREF pin
+  ADMUX |= (1 << REFS0);
+// Clear ADCSRA register
+  ADCSRA = 0;
+// Set prescaler at 128
+  ADCSRA |= (7 << ADPS0);
+// Enable ADC
+  ADCSRA |= (1 << ADEN); 
+// Start conversion
+  ADCSRA |= (1 << ADSC);
+
+// Wait until conversion is complete
+  while (ADCSRA & (1 << ADSC));
+
+// Read ADC result
+  int ldr1 = ADC;
+
+// Configure ADC for LDR2
+// Select channel 0
+  ADMUX = 0;
+// ADC1 - channel 1
+  ADMUX |= (1 << MUX0);
+// AVCC with external capacitor at AREF pin
+  ADMUX |= (1 << REFS0);
+// Start conversion
+  ADCSRA |= (1 << ADSC);
+
+// Wait until conversion is complete
+  while (ADCSRA & (1 << ADSC));
+
+// Read ADC result
+  int ldr2 = ADC;
+
 // Get the difference of these values
   int value1 = abs(ldr1 - ldr2);
   int value2 = abs(ldr2 - ldr1);
@@ -69,12 +101,16 @@ void loop() {
 // The night has come!
 // Move slowly to the east - Spoint = 0
   Spoint -= 5;
+// Update last position change time
+  lastPositionChange = millis();
   } else {
     if (ldr1 > ldr2) {
       if (Spoint - 2 <= 0) {
 // Be careful with the limitation of the servo
       } else {
         Spoint -= 2;
+// Update last position change time
+        lastPositionChange = millis();
       }
     }
     if (ldr1 < ldr2) {
@@ -82,6 +118,8 @@ void loop() {
 // Be careful with the limitation of the servo
       } else {
         Spoint += 2;
+// Update last position change time
+        lastPositionChange = millis();
       }
     }
   }
@@ -101,12 +139,14 @@ void loop() {
     Serial.println("Good Night!");
   }
 
-// Read the light intensity
-  int solarValue = ldr1 + ldr2;
-// Map the solar value to LED brightness (0 to maxBrightness)
-  int brightness = map(solarValue, 108, 1948, 0, 255);
-// Set the LED brightness
-  digitalWrite(ledPin, brightness);
+// Light the led only if the panel has found a good position to charge
+if (millis() - lastPositionChange > 2000) {
+// Turn on the LED
+    PORTB |= (1 << PORTB4);
+  } else {
+// Turn off the LED
+    PORTB &= ~(1 << PORTB4);
+  }
 
   delay_ms(80);
 }
