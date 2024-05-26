@@ -1,5 +1,7 @@
 // Include the servo motor library
 #include <Servo.h>
+// Include the interruption library
+#include <avr/interrupt.h> 
 // Define the LDR sensor pins
 #define LDR1 A0
 #define LDR2 A1
@@ -12,6 +14,35 @@ Servo servo;
 // Select the pin for the LED
 int ledPin = 12;
 
+// Global variable to count milliseconds
+volatile unsigned int timer2_millis = 0;
+
+// Timer2 ISR to increment the millisecond counter
+ISR(TIMER2_COMPA_vect) {
+  timer2_millis++;
+}
+
+// Custom delay function using Timer2
+void delay_ms(unsigned int ms) {
+  timer2_millis = 0;
+// Set CTC mode (Clear Timer on Compare Match)
+// CTC mode
+  TCCR2A = (1 << WGM21);
+// Prescaler 128
+  TCCR2B = (1 << CS22) | (1 << CS20);
+// Set compare value for 1ms interrupt (16MHz / 128 / 1000 - 1)
+  OCR2A = 124;
+// Enable Timer2 compare interrupt
+  TIMSK2 = (1 << OCIE2A);
+
+// Wait until the timer reaches the desired delay
+  while (timer2_millis < ms);
+
+// Disable Timer2 compare interrupt
+  TIMSK2 = 0;
+}
+
+
 void setup() {
   Serial.begin(9600);
 // Include servo motor PWM pin
@@ -20,7 +51,8 @@ void setup() {
   servo.write(Spoint);
 // Declare the LED as an output
   pinMode(ledPin, OUTPUT);
-  delay(100);
+// Delay using Timer1
+  delay_ms(80);
 }
 
 void loop() {
@@ -62,7 +94,7 @@ void loop() {
   } else if (Spoint < 60) {
     Serial.println("Good Morning sunshine!");
   } else if (Spoint >= 60 && Spoint <= 80) {
-    Sperial.println("It's time for lunch!");
+    Serial.println("It's time for lunch!");
   } else if (Spoint > 80 && Spoint < 110) {
     Serial.println("Good Afternoon!");
   } else {
@@ -76,5 +108,5 @@ void loop() {
 // Set the LED brightness
   digitalWrite(ledPin, brightness);
 
-  delay(100);
+  delay_ms(80);
 }
