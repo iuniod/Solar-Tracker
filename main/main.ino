@@ -1,40 +1,4 @@
-// ------------------- Import libraries --------------------
-// Include the servo motor library
-#include <Servo.h>
-// Include the interruption library
-#include <avr/interrupt.h> 
-// ---------------- Define pins and errors -----------------
-// Define the LDR sensor pins
-#define LDR1 A0
-#define LDR2 A1
-// Set epsilon value
-#define eps 10
-// Set error code
-#define error 1000
-// Starting point of the servo motor
-int Spoint =  0;
-// Create an object for the servo motor
-Servo servo;
-// Select the pin for the LED
-const int ledPin = 12;
-// Select the pin for the button
-const int buttonPin = 13;
-// ---------------- Define global variables ----------------
-// Global variable to count milliseconds
-volatile unsigned int timer2_millis = 0;
-// Global variable to count the time sience last position has moved
-volatile unsigned int lastPositionChange = 0;
-// Global variable to check the button
-volatile bool ifPressed = false;
-// Current reading from the input pin
-int buttonState;
-// Previous reading from the input pin
-int lastButtonState = LOW;
-// The last time the output was toggled
-unsigned  long lastDebounceTime = 0;
-// The debounce time
-unsigned long debounceDelay = 50;
-
+#include "C:\Users\iusti\FACULTATE\ANUL3\PM\proiect\main\utils.h"
 
 // ---------------- Define useful functions ----------------
 // Timer2 ISR to increment the millisecond counter
@@ -70,7 +34,9 @@ void move_servo(int ldr1, int ldr2) {
   Spoint = 0;
 // Update last position change time
   lastPositionChange = millis();
-  Serial.println("Moving to the initial state!");
+  if (!lastMessage.equals("Moving to the initial state!")) {
+    Serial.println("Moving to the initial state!");
+  }
   } else {
     if (ldr1 > ldr2) {
       if (Spoint - 2 <= 0) {
@@ -100,16 +66,22 @@ void move_servo(int ldr1, int ldr2) {
 // according to the position of the solar panel
 void user_messages() {
 // Check time of the day and print the correct message
+  String message = "";
   if (Spoint - 2 <= 0) {
-    Serial.println("Good Night!");
+    message = "Good Night!";
   } else if (Spoint < 60) {
-    Serial.println("Good Morning sunshine!");
+    message = "Good Morning sunshine!";
   } else if (Spoint >= 60 && Spoint <= 80) {
-    Serial.println("It's time for lunch!");
+    message = "It's time for lunch!";
   } else if (Spoint > 80 && Spoint < 110) {
-    Serial.println("Good Afternoon!");
+    message = "Good Afternoon!";
   } else {
-    Serial.println("Good Night!");
+    message = "Good Night!";
+  }
+
+  if (!lastMessage.equals(message)) {
+    lastMessage = message;
+    Serial.println(message);
   }
 }
 
@@ -206,7 +178,9 @@ void loop() {
 // Write the user messages
     user_messages();
   } else {
-    Serial.println("The solar panel was set to a fix position");
+    if (!lastMessage.equals("The solar panel was set to a fix position")) {
+      Serial.println("The solar panel was set to a fix position");
+    }
   }
 
 // Light the led
