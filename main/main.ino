@@ -157,30 +157,31 @@ void loop() {
 
 // -------------------- Implementation ---------------------
 
-// Check if the button was pressed
-  if (reading != lastButtonState) {
-// Reset the debouncing timer
-    lastDebounceTime = millis();
-  }
-  if ((millis() - lastDebounceTime) > debounceDelay) {
-    if (reading != buttonState) {
-      buttonState = reading;
+// Check if the button state has changed
+if (reading != lastButtonState) {
+  // Reset the debouncing timer
+  lastDebounceTime = millis();
+}
+
+if ((millis() - lastDebounceTime) > debounceDelay) {
+  // If the button state has changed
+  if (reading != buttonState) {
+    buttonState = reading;
+    // Only toggle the ifPressed state if the button was pressed
+    if (buttonState == LOW) {
       ifPressed = !ifPressed;
     }
   }
+}
 
 // Save the reading
-  lastButtonState = reading;
+lastButtonState = reading;
 
 // Move the solar panel
   if (ifPressed == false) {
     move_servo(ldr1, ldr2);
 // Write the user messages
     user_messages();
-  } else {
-    if (!lastMessage.equals("The solar panel was set to a fix position")) {
-      Serial.println("The solar panel was set to a fix position");
-    }
   }
 
 // Light the led
